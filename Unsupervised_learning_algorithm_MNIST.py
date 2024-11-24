@@ -10,15 +10,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def draw_weights(ep, fig, synapses, Kx, Ky):
-    yy = 0
-    HM = np.zeros((28 * Ky, 28 * Kx))
-    for y in range(Ky):
-        for x in range(Kx):
-            HM[y * 28 : (y + 1) * 28, x * 28 : (x + 1) * 28] = synapses[yy, :].reshape(
-                28, 28
-            )
-            yy += 1
+def draw_weights(ep, fig, synapses, GRID_X, GRID_Y):
+    HM = np.zeros((28 * GRID_Y, 28 * GRID_X))
+    for y in range(GRID_Y):
+        for x in range(GRID_X):
+            HM[y * 28 : (y + 1) * 28, x * 28 : (x + 1) * 28] = synapses[
+                y * GRID_X + x, :
+            ].reshape(28, 28)
     plt.clf()
     nc = np.amax(np.absolute(HM))
 
@@ -32,7 +30,7 @@ def draw_weights(ep, fig, synapses, Kx, Ky):
 
 def train():
     mat = scipy.io.loadmat("mnist_all.mat")
-    Nc = 10     # number of classes (0-9)
+    Nc = 10  # number of classes (0-9)
     IDIM = 784
     Ns = 60000
     M = np.zeros((0, IDIM))
@@ -41,8 +39,10 @@ def train():
     M = M / 255.0
 
     eps0 = 2e-2  # learning rate
-    Kx, Ky = 10, 10
-    NHID = Kx * Ky  # number of hidden units that are displayed in Ky by Kx array
+    GRID_X, GRID_Y = 10, 10
+    NHID = (
+        GRID_X * GRID_Y
+    )  # number of hidden units that are displayed in GRID_Y by GRID_X array
     MAX_EPOCHS = 200  # number of epochs
     BATCH_SIZE = 100  # size of the minibatch
     EPSILON = 1e-30  # numerical precision of weight updates
@@ -84,7 +84,7 @@ def train():
             synapses += eps * np.true_divide(ds, nc)
 
         print(f"Epoch {ep}; nc {nc}")
-        draw_weights(ep, fig, synapses, Kx, Ky)
+        draw_weights(ep, fig, synapses, GRID_X, GRID_Y)
     plt.show()  # pause until user kills the window
 
 
