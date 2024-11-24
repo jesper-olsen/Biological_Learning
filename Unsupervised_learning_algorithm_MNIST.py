@@ -19,7 +19,6 @@ def draw_weights(ep, fig, synapses, GRID_X, GRID_Y):
             ].reshape(28, 28)
     plt.clf()
     norm_const = np.amax(np.absolute(HM))
-
     im = plt.imshow(HM, cmap="bwr", vmin=-norm_const, vmax=norm_const)
     fig.colorbar(im, ticks=[np.amin(HM), 0, np.amax(HM)])
     plt.title(f"Weights epoch {ep}")
@@ -33,7 +32,6 @@ def load_mnist(file_path, normalize=True):
         mat = scipy.io.loadmat(file_path)
     except FileNotFoundError:
         raise FileNotFoundError(f"{file_path} not found. Please provide the dataset.")
-
     data = np.vstack([mat[f"train{i}"] for i in range(10)])
     if normalize:
         data = data / 255.0  # Normalize pixel intensities to [0, 1]
@@ -68,9 +66,9 @@ def train():
         lr = LR0 * (1 - ep / MAX_EPOCHS)
         np.random.shuffle(data)
         for i in range(NTRAIN // BATCH_SIZE):
-            inputs = np.transpose(data[i * BATCH_SIZE : (i + 1) * BATCH_SIZE, :])
+            batch = data[i * BATCH_SIZE : (i + 1) * BATCH_SIZE, :].T
             sig = np.sign(synapses)
-            tot_input = np.dot(sig * np.absolute(synapses) ** (P - 1), inputs)
+            tot_input = np.dot(sig * np.absolute(synapses) ** (P - 1), batch)
 
             y = np.argsort(tot_input, axis=0)  # 100x100
             yl = np.zeros((NHID, BATCH_SIZE))  # 100x100
@@ -79,7 +77,7 @@ def train():
 
             xx = np.sum(np.multiply(yl, tot_input), 1)  # 100x1
             # delta_synapses 100x784
-            delta_synapses = np.dot(yl, np.transpose(inputs)) - np.multiply(
+            delta_synapses = np.dot(yl, batch.T) - np.multiply(
                 np.tile(xx.reshape(xx.shape[0], 1), (1, IDIM)), synapses
             )
 
