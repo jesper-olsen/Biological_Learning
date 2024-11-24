@@ -18,9 +18,9 @@ def draw_weights(ep, fig, synapses, GRID_X, GRID_Y):
                 y * GRID_X + x, :
             ].reshape(28, 28)
     plt.clf()
-    nc = np.amax(np.absolute(HM))
+    norm_const = np.amax(np.absolute(HM))
 
-    im = plt.imshow(HM, cmap="bwr", vmin=-nc, vmax=nc)
+    im = plt.imshow(HM, cmap="bwr", vmin=-norm_const, vmax=norm_const)
     fig.colorbar(im, ticks=[np.amin(HM), 0, np.amax(HM)])
     plt.title(f"Weights epoch {ep}")
     plt.axis("off")
@@ -28,17 +28,24 @@ def draw_weights(ep, fig, synapses, GRID_X, GRID_Y):
     plt.pause(0.001)
 
 
-def train():
-    mat = scipy.io.loadmat("mnist_all.mat")
-    Nc = 10  # number of classes (0-9)
-    IDIM = 784
-    Ns = 60000
-    M = np.zeros((0, IDIM))
-    for i in range(Nc):
-        M = np.concatenate((M, mat["train" + str(i)]), axis=0)
-    M = M / 255.0
+def load_mnist(file_path, normalize=True):
+    try:
+        mat = scipy.io.loadmat(file_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{file_path} not found. Please provide the dataset.")
 
-    eps0 = 2e-2  # learning rate
+    data = np.vstack([mat[f"train{i}"] for i in range(10)])
+    if normalize:
+        data = data / 255.0  # Normalize pixel intensities to [0, 1]
+    return data
+
+
+def train():
+    IDIM = 784
+    NTRAIN = 60000
+    data = load_mnist("mnist_all.mat")
+
+    LR0 = 2e-2  # learning rate
     GRID_X, GRID_Y = 10, 10
     NHID = (
         GRID_X * GRID_Y
@@ -46,9 +53,9 @@ def train():
     MAX_EPOCHS = 200  # number of epochs
     BATCH_SIZE = 100  # size of the minibatch
     EPSILON = 1e-30  # numerical precision of weight updates
-    delta = 0.4  # Strength of the anti-hebbian learning
-    p = 2.0  # Lebesgue norm of the weights
-    k = 2  # ranking parameter, must be integer that is bigger or equal than 2
+    DELTA = 0.4  # Strength of the anti-hebbian learning
+    P = 2.0  # Lebesgue norm of the weights
+    RANK_PARAM = 2  #  must be integer that is bigger or equal than 2
 
     fig = plt.figure(figsize=(12.9, 10))
 
@@ -61,29 +68,31 @@ def train():
     mu, sigma = 0.0, 1.0  # mean and standard deviation - for weight initialisation
     synapses = np.random.normal(mu, sigma, (NHID, IDIM))
     for ep in range(MAX_EPOCHS):
-        eps = eps0 * (1 - ep / MAX_EPOCHS)
-        M = M[np.random.permutation(Ns), :]
-        for i in range(Ns // BATCH_SIZE):
-            inputs = np.transpose(M[i * BATCH_SIZE : (i + 1) * BATCH_SIZE, :])
+        lr = LR0 * (1 - ep / MAX_EPOCHS)
+        np.random.shuffle(data)
+        for i in range(NTRAIN // BATCH_SIZE):
+            inputs = np.transpose(data[i * BATCH_SIZE : (i + 1) * BATCH_SIZE, :])
             sig = np.sign(synapses)
-            tot_input = np.dot(sig * np.absolute(synapses) ** (p - 1), inputs)
+            tot_input = np.dot(sig * np.absolute(synapses) ** (P - 1), inputs)
 
             y = np.argsort(tot_input, axis=0)  # 100x100
             yl = np.zeros((NHID, BATCH_SIZE))  # 100x100
             yl[y[NHID - 1, :], np.arange(BATCH_SIZE)] = 1.0
-            yl[y[NHID - k], np.arange(BATCH_SIZE)] = -delta
+            yl[y[NHID - RANK_PARAM], np.arange(BATCH_SIZE)] = -DELTA
 
             xx = np.sum(np.multiply(yl, tot_input), 1)  # 100x1
-            # ds 100x784
-            ds = np.dot(yl, np.transpose(inputs)) - np.multiply(
+            # delta_synapses 100x784
+            delta_synapses = np.dot(yl, np.transpose(inputs)) - np.multiply(
                 np.tile(xx.reshape(xx.shape[0], 1), (1, IDIM)), synapses
             )
 
-            nc = np.amax(np.absolute(ds))  # amax - maximum element (scalar)
-            nc = max(nc, EPSILON)
-            synapses += eps * np.true_divide(ds, nc)
+            norm_const = np.amax(
+                np.absolute(delta_synapses)
+            )  # amax - maximum element (scalar)
+            norm_const = max(norm_const, EPSILON)
+            synapses += lr * np.true_divide(delta_synapses, norm_const)
 
-        print(f"Epoch {ep}; nc {nc}")
+        print(f"Epoch {ep}; norm_const {norm_const}")
         draw_weights(ep, fig, synapses, GRID_X, GRID_Y)
     plt.show()  # pause until user kills the window
 
