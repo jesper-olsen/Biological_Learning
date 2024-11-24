@@ -41,15 +41,12 @@ def load_mnist(file_path, normalize=True):
 
 
 def train():
+    data = load_mnist("mnist_all.mat")
     IDIM = 784
     NTRAIN = 60000
-    data = load_mnist("mnist_all.mat")
-
     LR0 = 2e-2  # learning rate
     GRID_X, GRID_Y = 10, 10
-    NHID = (
-        GRID_X * GRID_Y
-    )  # number of hidden units that are displayed in GRID_Y by GRID_X array
+    NHID = GRID_X * GRID_Y
     MAX_EPOCHS = 200  # number of epochs
     BATCH_SIZE = 100  # size of the minibatch
     EPSILON = 1e-30  # numerical precision of weight updates
@@ -64,7 +61,7 @@ def train():
     # stores the activations of the post synaptic cells - it is denoted by g(Q) in Eq 3 of the paper.
     # See also Eq 9 and Eq 10.
     # The variable `ds` is the right hand side of Eq 3. The weights are updated after each minibatch
-    # in a way so that the largest update is equal to the learning rate `eps` at that epoch.
+    # in a way so that the largest update is equal to the learning rate at that epoch.
     mu, sigma = 0.0, 1.0  # mean and standard deviation - for weight initialisation
     synapses = np.random.normal(mu, sigma, (NHID, IDIM))
     for ep in range(MAX_EPOCHS):
@@ -86,9 +83,7 @@ def train():
                 np.tile(xx.reshape(xx.shape[0], 1), (1, IDIM)), synapses
             )
 
-            norm_const = np.amax(
-                np.absolute(delta_synapses)
-            )  # amax - maximum element (scalar)
+            norm_const = np.amax(np.absolute(delta_synapses))
             norm_const = max(norm_const, EPSILON)
             synapses += lr * np.true_divide(delta_synapses, norm_const)
 
